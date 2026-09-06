@@ -148,6 +148,7 @@ function DictionaryContent() {
   const [isTyping, setIsTyping] = useState(true);
   const autoTypeActive = useRef(true);
   const inputRef = useRef<HTMLInputElement>(null);
+  const articleContentRef = useRef<HTMLDivElement>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [articleParagraphs, setArticleParagraphs] = useState<string[]>([]);
   const [showWelcome, setShowWelcome] = useState(true);
@@ -256,6 +257,15 @@ function DictionaryContent() {
       }
 
       const range = selection.getRangeAt(0);
+      if (
+        !articleContentRef.current ||
+        !articleContentRef.current.contains(range.commonAncestorContainer)
+      ) {
+        setRects([]);
+        setSelectionText('');
+        return;
+      }
+
       const domRects = Array.from(range.getClientRects());
       setRects(domRects.map((r) => ({
         left: r.left,
@@ -492,9 +502,11 @@ function DictionaryContent() {
                 )}
               </button>
             </div>
-            {articleParagraphs.map((p, i) => (
-              <ScrambleParagraph key={i} text={p} isSearching={isSearching} />
-            ))}
+            <div ref={articleContentRef} className="article-content select-text">
+              {articleParagraphs.map((p, i) => (
+                <ScrambleParagraph key={i} text={p} isSearching={isSearching} />
+              ))}
+            </div>
           </>
         )}
       </div>

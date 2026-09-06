@@ -39,7 +39,7 @@ export const UserAccountBar: React.FC = () => {
   }, []);
 
   return (
-    <div className="relative z-30 mb-6 flex flex-col gap-2">
+    <div className="relative z-30 mb-6 flex flex-col gap-2 select-none">
       {/* Error Alert */}
       {authError && (
         <div className="border-[2.5px] border-black bg-white p-3 flex items-start gap-2 shadow-[3px_3px_0px_#000]">

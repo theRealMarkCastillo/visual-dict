@@ -1,22 +1,57 @@
+import 'dotenv/config';
 import express from 'express';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI } from '@google/genai';
+
+let aiInstance: GoogleGenAI | null = null;
+
+function getAIClient(): GoogleGenAI {
+  let apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+  if (apiKey) {
+    // Strip accidental surrounding quotes or whitespace
+    apiKey = apiKey.trim().replace(/^["']|["']$/g, '');
+  }
+  if (!apiKey || apiKey === 'MY_GEMINI_API_KEY' || apiKey === 'your_api_key_here') {
+    throw new Error(
+      'GEMINI_API_KEY is not configured or is empty. Please set a valid Gemini API key in your .env file: GEMINI_API_KEY=AIzaSy... (or run `export GEMINI_API_KEY="AIzaSy..."` in your terminal).'
+    );
+  }
+  if (!aiInstance) {
+    aiInstance = new GoogleGenAI({
+      apiKey,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        },
+      },
+    });
+  }
+  return aiInstance;
+}
+
+function formatGeminiError(action: string, error: any) {
+  console.error(`${action} error:`, error);
+  const errMsg = error?.message || String(error);
+  if (errMsg.includes('ACCESS_TOKEN_SCOPE_INSUFFICIENT') || error?.status === 403) {
+    console.error(`\n⚠️  GEMINI AUTHENTICATION FAILED:
+The request was rejected because the Google Gen AI SDK attempted to authenticate using Google Cloud ADC credentials (gcloud) with insufficient scopes instead of a Gemini API key.
+To resolve:
+1. Ensure your .env file in the project root contains:
+   GEMINI_API_KEY=AIzaSy...
+2. Get your Gemini API key at: https://aistudio.google.com/app/apikey
+3. Or export it directly in your terminal before running npm run dev:
+   export GEMINI_API_KEY="AIzaSy..."\n`);
+    return 'Google Gemini API authentication failed. Please check that GEMINI_API_KEY is configured with an AI Studio API key in your .env file or exported in your terminal.';
+  }
+  return errMsg || `Failed to ${action.toLowerCase()}`;
+}
 
 async function startServer() {
   const app = express();
   const PORT = 3000;
 
   app.use(express.json());
-
-  const ai = new GoogleGenAI({
-    apiKey: process.env.GEMINI_API_KEY,
-    httpOptions: {
-      headers: {
-        'User-Agent': 'aistudio-build',
-      },
-    },
-  });
 
   app.post('/api/generate-image', async (req, res) => {
     try {
@@ -26,6 +61,7 @@ async function startServer() {
       }
 
       console.log('Generating image and explanation for prompt:', prompt);
+      const ai = getAIClient();
       const [imageResponse, textResponse] = await Promise.all([
         ai.models.generateContent({
           model: 'gemini-3.1-flash-lite-image',
@@ -71,8 +107,8 @@ async function startServer() {
         res.status(500).json({ error: 'No image found in response' });
       }
     } catch (error: any) {
-      console.error('Image generation error:', error);
-      res.status(500).json({ error: error.message || 'Failed to generate image' });
+      const formattedError = formatGeminiError('Image generation', error);
+      res.status(500).json({ error: formattedError });
     }
   });
 
@@ -84,8 +120,9 @@ async function startServer() {
       }
 
       console.log('Generating content for:', query);
+      const ai = getAIClient();
       const response = await ai.models.generateContent({
-        model: 'gemini-3.1-flash-lite',
+        model: 'gemini-3.8-flash',
         contents: {
           parts: [
             {
@@ -110,8 +147,8 @@ async function startServer() {
         res.status(500).json({ error: 'No text content found' });
       }
     } catch (error: any) {
-      console.error('Content generation error:', error);
-      res.status(500).json({ error: error.message || 'Failed to generate content' });
+      const formattedError = formatGeminiError('Content generation', error);
+      res.status(500).json({ error: formattedError });
     }
   });
 

@@ -143,6 +143,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       ) {
         // User voluntarily dismissed popup
         setAuthError('Sign-in cancelled. You can try again whenever you are ready.');
+      } else if (err.code === 'auth/unauthorized-domain') {
+        setAuthError(
+          "This domain is not authorized for Firebase Auth. If running locally, please add 'localhost' to Authorized Domains in Firebase Console (Authentication > Settings > Authorized domains)."
+        );
       } else if (err.code === 'auth/network-request-failed') {
         setAuthError('Network error. Please check your connection and try again.');
       } else {
