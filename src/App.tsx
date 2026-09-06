@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Loader2, MoreHorizontal, ArrowLeft, Search, X } from 'lucide-react';
+import { Loader2, MoreHorizontal, ArrowLeft, Search, X, ShieldCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { UserAccountBar, GoogleIcon } from './components/UserAccountBar';
 
 declare global {
   interface Window {
@@ -133,7 +135,8 @@ const PixelArtLoader = () => {
   );
 };
 
-export default function App() {
+function DictionaryContent() {
+  const { user, signingIn, signInWithGoogle } = useAuth();
   const [rects, setRects] = useState<Rect[]>([]);
   const [uiState, setUiState] = useState<UIState>('IDLE');
   const [imageUrl, setImageUrl] = useState<string | null>(null);
@@ -189,14 +192,14 @@ export default function App() {
       }
       if (e.key === 'Backspace') {
         e.preventDefault();
-        textAreaRef.current?.focus();
+        inputRef.current?.focus();
         setHeaderText((prev) => {
           autoTypeActive.current = false;
           setIsTyping(false);
           return prev.slice(0, -1);
         });
       } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        textAreaRef.current?.focus();
+        inputRef.current?.focus();
         setHeaderText((prev) => {
           autoTypeActive.current = false;
           setIsTyping(false);
@@ -359,20 +362,78 @@ export default function App() {
 
   return (
     <div className={`w-full min-h-screen ${showTooltip && uiState === 'GENERATING' ? 'cursor-none' : ''}`}>
-      <div className={`w-full max-w-[600px] mx-auto px-8 sm:px-16 min-h-screen pt-10 pb-24 font-sans leading-relaxed text-lg relative bg-[#FAE125] flex flex-col transition-colors duration-300 ${showTooltip ? 'text-[var(--color-primary-text)] sm:text-[rgba(51,51,51,0.3)]' : 'text-[var(--color-primary-text)]'}`}>
+      <div className={`w-full max-w-[600px] mx-auto px-8 sm:px-16 min-h-screen pt-8 pb-24 font-sans leading-relaxed text-lg relative bg-[#FAE125] flex flex-col transition-colors duration-300 ${showTooltip ? 'text-[var(--color-primary-text)] sm:text-[rgba(51,51,51,0.3)]' : 'text-[var(--color-primary-text)]'}`}>
+        
+        {/* Top account bar */}
+        <UserAccountBar />
+
         {showWelcome ? (
-          <div className="flex-1 flex flex-col justify-center gap-[12px]">
+          <div className="flex-1 flex flex-col justify-center gap-4">
             <h1 className="text-4xl font-semibold tracking-tight">
               Welcome to <span className="block sm:inline">peek-a-word</span>
             </h1>
             <p className="text-xl leading-relaxed font-medium">
               Enjoy the interactive reading experience where you can highlight any word to get an instant definition with contextual images.
             </p>
+
+            {/* Account Status Card or Google Sign-In */}
+            {user ? (
+              <div className="border-[2.5px] border-black bg-white p-4 shadow-[3px_3px_0px_#000] flex items-center gap-3 my-1">
+                {user.photoURL ? (
+                  <img
+                    src={user.photoURL}
+                    alt={user.displayName || 'Google Profile'}
+                    referrerPolicy="no-referrer"
+                    className="w-12 h-12 rounded-full border-2 border-black object-cover shrink-0"
+                  />
+                ) : (
+                  <div className="w-12 h-12 rounded-full bg-black text-white flex items-center justify-center text-lg font-bold shrink-0">
+                    {user.displayName ? user.displayName.charAt(0).toUpperCase() : 'U'}
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <div className="text-xs uppercase font-bold tracking-wider text-green-700 flex items-center gap-1">
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    Google Account Connected
+                  </div>
+                  <p className="font-bold text-base text-black truncate">
+                    {user.displayName || 'Google User'}
+                  </p>
+                  <p className="text-xs text-gray-700 truncate">{user.email}</p>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2 my-1">
+                <button
+                  onClick={signInWithGoogle}
+                  disabled={signingIn}
+                  className="w-full h-[56px] border-[2.5px] border-black bg-white text-black font-bold text-base sm:text-lg hover:bg-[#fff9d0] transition-colors flex items-center justify-center gap-3 shadow-[3px_3px_0px_#000] cursor-pointer disabled:opacity-50"
+                  id="welcome-google-signin-btn"
+                >
+                  {signingIn ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <span>Connecting Google Account...</span>
+                    </>
+                  ) : (
+                    <>
+                      <GoogleIcon className="w-5 h-5 shrink-0" />
+                      <span>Create Account / Log In with Google</span>
+                    </>
+                  )}
+                </button>
+                <p className="text-xs text-black/70 text-center font-medium">
+                  Connect your Google account to personalize your dictionary experience
+                </p>
+              </div>
+            )}
+
             <button 
               onClick={handleEnterClick}
-              className="w-full h-[56px] border-[2.5px] border-black bg-[#FAE125] text-black font-semibold text-lg hover:bg-[#f5db18] transition-colors"
+              className="w-full h-[56px] border-[2.5px] border-black bg-[#FAE125] text-black font-semibold text-lg hover:bg-[#f5db18] transition-colors shadow-[3px_3px_0px_#000] cursor-pointer"
+              id="enter-dictionary-btn"
             >
-              Enter
+              {user ? 'Enter Dictionary' : 'Continue as Guest'}
             </button>
           </div>
         ) : (
@@ -532,5 +593,13 @@ export default function App() {
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <DictionaryContent />
+    </AuthProvider>
   );
 }

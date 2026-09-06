@@ -1,0 +1,68 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Global Safety Net: Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isVerifiedUser(userId) {
+      return isOwner(userId) && request.auth.token.email_verified == true;
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'createdAt', 'lastLoginAt']) &&
+        data.keys().size() <= 6 &&
+        data.uid is string &&
+        data.uid.size() <= 128 &&
+        data.uid == request.auth.uid &&
+        data.email is string &&
+        data.email.size() <= 320 &&
+        (!('displayName' in data) || (data.displayName is string && data.displayName.size() <= 128)) &&
+        (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() <= 1024)) &&
+        data.createdAt is timestamp &&
+        data.lastLoginAt is timestamp;
+    }
+
+    // User profile documents
+    match /users/{userId} {
+      // PII Protection: Only the account owner can read their profile
+      allow get: if isOwner(userId);
+      // Deny collection listing to prevent user enumeration
+      allow list: if false;
+
+      // Account creation
+      allow create: if isVerifiedUser(userId) &&
+        isValidId(userId) &&
+        isValidUser(request.resource.data) &&
+        request.resource.data.createdAt == request.time &&
+        request.resource.data.lastLoginAt == request.time;
+
+      // Profile login/sync update
+      allow update: if isVerifiedUser(userId) &&
+        isValidId(userId) &&
+        isValidUser(request.resource.data) &&
+        request.resource.data.uid == resource.data.uid &&
+        request.resource.data.createdAt == resource.data.createdAt &&
+        request.resource.data.lastLoginAt == request.time &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastLoginAt', 'displayName', 'photoURL']);
+
+      // Account deletion via client is blocked
+      allow delete: if false;
+    }
+  }
+}
