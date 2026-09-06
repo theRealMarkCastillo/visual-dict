@@ -1,0 +1,30 @@
+@import url('https://fonts.googleapis.com/css2?family=Special+Elite&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Special Elite", ui-sans-serif, system-ui, sans-serif;
+  --color-primary-text: #333333;
+}
+
+body {
+  background-color: #FFFFFF;
+}
+
+@keyframes blink-cursor {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.animate-blink-cursor {
+  animation: blink-cursor 1.06s steps(1) infinite;
+}
+
+/* Disable native selection styling */
+::selection {
+  background-color: black;
+  color: white;
+}
+::-moz-selection {
+  background-color: black;
+  color: white;
+}

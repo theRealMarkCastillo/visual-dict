@@ -1,0 +1,8 @@
+{
+  "name": "Remix: Interactive Visual Dictionary",
+  "description": "An interactive reading experience where any text highlight instantly generates an AI-powered explanation and a contextual image representation in a seamless floating tooltip.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
